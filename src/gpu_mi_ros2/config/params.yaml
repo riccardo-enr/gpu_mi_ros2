@@ -1,0 +1,4 @@
+mi_field_node:
+  ros__parameters:
+    algo: fcmi          # fcmi | uniform_fsmi | approx_fsmi | fsmi
+    publish_rate: 0.0   # 0 = publish on every map update

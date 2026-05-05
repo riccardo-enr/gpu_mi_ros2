@@ -1,0 +1,40 @@
+[workspace]
+name = "gpu_mi_ros2"
+version = "0.1.0"
+description = "GPU-accelerated mutual information field node for ROS 2"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = ">=3.12,<3.13"
+
+[pypi-dependencies]
+empy = "*"
+catkin-pkg = "*"
+lark = "*"
+numpy = "*"
+pyyaml = "*"
+scienceplots = "*"
+
+[feature.dev.pypi-dependencies]
+pytest = "*"
+black = "*"
+ruff = "*"
+
+[feature.dev.tasks]
+lint = "ruff format . && ruff check . --fix"
+
+[environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+
+[tasks]
+deps = "rosdep update && rosdep install --from-paths src --ignore-src -r -y"
+build = "colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+build-release = "colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+test = "colcon test"
+clean = "rm -rf build install log"
+launch = { cmd = "ros2 launch gpu_mi_ros2 mi_field.launch.py" }
+
+[activation]
+scripts = ["scripts/setup_env.sh"]
