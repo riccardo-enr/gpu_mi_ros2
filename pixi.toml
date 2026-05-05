@@ -29,6 +29,8 @@ default = { solve-group = "default" }
 dev = { features = ["dev"], solve-group = "default" }
 
 [tasks]
+# Install gpu_mi Python bindings from the submodule
+install-gpu-mi = "pip install -e external/gpu_mi --no-build-isolation"
 deps = "rosdep update && rosdep install --from-paths src --ignore-src -r -y"
 build = "colcon build --symlink-install --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
 build-release = "colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON"

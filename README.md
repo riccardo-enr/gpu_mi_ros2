@@ -5,11 +5,19 @@ ROS 2 node that computes a GPU-accelerated mutual information field from a 2-D o
 ## Prerequisites
 
 - ROS 2 (Humble / Jazzy)
-- [gpu_mi](https://github.com/riccardo-enr/gpu_mi) Python bindings installed (`pixi run install` in the gpu_mi repo)
+- CUDA-capable GPU
 
 ## Build
 
 ```bash
+# Clone with submodules
+git clone --recurse-submodules git@github.com:riccardo-enr/gpu_mi_ros2.git
+cd gpu_mi_ros2
+
+# Install gpu_mi Python bindings from submodule
+pixi run install-gpu-mi
+
+# Install ROS dependencies and build
 pixi run deps
 pixi run build
 ```
