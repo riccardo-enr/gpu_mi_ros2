@@ -1,3 +1,6 @@
 [submodule "third_party/gpu_mi"]
 	path = external/gpu_mi
 	url = git@github.com:riccardo-enr/gpu_mi.git
+[submodule "external/PX4-gazebo-models"]
+	path = external/PX4-gazebo-models
+	url = git@github.com:riccardo-enr/PX4-gazebo-models.git

@@ -14,6 +14,9 @@ ROS 2 node that computes a GPU-accelerated mutual information field from a 2-D o
 git clone --recurse-submodules git@github.com:riccardo-enr/gpu_mi_ros2.git
 cd gpu_mi_ros2
 
+# If already cloned without --recurse-submodules, initialize submodules manually
+git submodule update --init --recursive
+
 # Install gpu_mi Python bindings from submodule
 pixi run install-gpu-mi
 
