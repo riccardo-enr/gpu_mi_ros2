@@ -33,8 +33,10 @@ def generate_launch_description():
     robot_sdf = PathJoinSubstitution([pkg_share, "models", "demo_robot", "model.sdf"])
     bridge_config = PathJoinSubstitution([pkg_share, "config", "ros_gz_bridge.yaml"])
     slam_launch_path = PathJoinSubstitution([pkg_share, "launch", "slam.launch.py"])
+    mi_launch_path = PathJoinSubstitution([pkg_share, "launch", "mi_field.launch.py"])
     headless = LaunchConfiguration("headless")
     slam = LaunchConfiguration("slam")
+    mi = LaunchConfiguration("mi")
 
     return LaunchDescription(
         [
@@ -47,6 +49,11 @@ def generate_launch_description():
                 "slam",
                 default_value="true",
                 description="Start slam_toolbox alongside the sim",
+            ),
+            DeclareLaunchArgument(
+                "mi",
+                default_value="true",
+                description="Start mi_field_node alongside the sim",
             ),
             ExecuteProcess(
                 cmd=["gz", "sim", "-r", world_sdf],
@@ -91,6 +98,16 @@ def generate_launch_description():
                         PythonLaunchDescriptionSource(slam_launch_path),
                         launch_arguments={"use_sim_time": "true"}.items(),
                         condition=IfCondition(slam),
+                    ),
+                ],
+            ),
+            # Delay so /map exists before mi_field_node subscribes.
+            TimerAction(
+                period=5.0,
+                actions=[
+                    IncludeLaunchDescription(
+                        PythonLaunchDescriptionSource(mi_launch_path),
+                        condition=IfCondition(mi),
                     ),
                 ],
             ),

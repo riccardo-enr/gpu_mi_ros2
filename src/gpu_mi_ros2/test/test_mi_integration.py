@@ -52,7 +52,7 @@ def test_sim_launch_includes_mi_field():
         e for e in _flatten(ld.entities) if isinstance(e, IncludeLaunchDescription)
     ]
     matched = any(
-        "mi_field.launch.py" in repr(inc.launch_description_source)
+        "mi_field.launch.py" in str(inc.launch_description_source.location)
         for inc in includes
     )
     assert matched, (
