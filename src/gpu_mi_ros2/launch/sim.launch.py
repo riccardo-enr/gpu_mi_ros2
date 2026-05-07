@@ -2,8 +2,14 @@ import os
 from pathlib import Path
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    IncludeLaunchDescription,
+    TimerAction,
+)
 from launch.conditions import IfCondition, UnlessCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -26,7 +32,9 @@ def generate_launch_description():
 
     robot_sdf = PathJoinSubstitution([pkg_share, "models", "demo_robot", "model.sdf"])
     bridge_config = PathJoinSubstitution([pkg_share, "config", "ros_gz_bridge.yaml"])
+    slam_launch_path = PathJoinSubstitution([pkg_share, "launch", "slam.launch.py"])
     headless = LaunchConfiguration("headless")
+    slam = LaunchConfiguration("slam")
 
     return LaunchDescription(
         [
@@ -34,6 +42,11 @@ def generate_launch_description():
                 "headless",
                 default_value="false",
                 description="Run Gazebo server only, without the GUI",
+            ),
+            DeclareLaunchArgument(
+                "slam",
+                default_value="true",
+                description="Start slam_toolbox alongside the sim",
             ),
             ExecuteProcess(
                 cmd=["gz", "sim", "-r", world_sdf],
@@ -69,6 +82,17 @@ def generate_launch_description():
                 executable="parameter_bridge",
                 arguments=["--ros-args", "-p", ["config_file:=", bridge_config]],
                 output="screen",
+            ),
+            # Delay so /scan + TF are flowing before slam_toolbox starts.
+            TimerAction(
+                period=3.0,
+                actions=[
+                    IncludeLaunchDescription(
+                        PythonLaunchDescriptionSource(slam_launch_path),
+                        launch_arguments={"use_sim_time": "true"}.items(),
+                        condition=IfCondition(slam),
+                    ),
+                ],
             ),
         ]
     )
