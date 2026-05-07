@@ -37,7 +37,7 @@ build-release = "colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=
 test = "colcon test"
 clean = "rm -rf build install log"
 launch = { cmd = "ros2 launch gpu_mi_ros2 mi_field.launch.py" }
-sim = { cmd = "ros2 launch gpu_mi_ros2 sim.launch.py", depends_on = ["build"] }
+sim = { cmd = "ros2 launch gpu_mi_ros2 sim.launch.py", depends-on = ["build"] }
 
 [activation]
 scripts = ["scripts/setup_env.sh"]

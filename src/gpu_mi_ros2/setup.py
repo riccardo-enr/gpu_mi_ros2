@@ -22,8 +22,7 @@ setup(
     maintainer_email="riccardo.enrico97@proton.me",
     description="GPU-accelerated mutual information field node for ROS 2",
     license="MIT",
-    tests_require=["pytest"],
-    entry_points={
+entry_points={
         "console_scripts": [
             "mi_field_node = gpu_mi_ros2.mi_field_node:main",
         ],
