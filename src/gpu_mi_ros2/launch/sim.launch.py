@@ -1,5 +1,37 @@
 import os
+import tempfile
 from pathlib import Path
+
+# Gazebo Harmonic does not auto-load system plugins; the upstream
+# cyberzoo_office.sdf has none, so the lidar never produces scans without
+# the Sensors plugin. Inject the standard plugin block at launch time so
+# the submodule stays untouched.
+_GZ_SYSTEM_PLUGINS = """\
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+"""
+
+
+def _patched_world(src_path: str) -> str:
+    """Return a temp SDF path = src_path with system plugins injected."""
+    src = Path(src_path).read_text()
+    if "gz::sim::systems::Sensors" in src:
+        return src_path
+    # Inject right after the opening <world ...> tag.
+    import re
+    patched = re.sub(
+        r"(<world\b[^>]*>)",
+        r"\1\n" + _GZ_SYSTEM_PLUGINS,
+        src,
+        count=1,
+    )
+    out = Path(tempfile.gettempdir()) / "gpu_mi_ros2_cyberzoo_office_patched.sdf"
+    out.write_text(patched)
+    return str(out)
 
 from launch import LaunchDescription
 from launch.actions import (
@@ -20,8 +52,8 @@ def generate_launch_description():
 
     # parents[3] = repo root  (launch/ -> pkg/ -> src/ -> root); symlink resolves to source
     repo_root = Path(__file__).resolve().parents[3]
-    world_sdf = str(
-        repo_root / "external" / "PX4-gazebo-models" / "worlds" / "cyberzoo_office.sdf"
+    world_sdf = _patched_world(
+        str(repo_root / "external" / "PX4-gazebo-models" / "worlds" / "cyberzoo_office.sdf")
     )
     # model://cyberzoo is inside the models/ subdirectory of the submodule
     gz_models_path = str(repo_root / "external" / "PX4-gazebo-models" / "models")
