@@ -26,6 +26,6 @@ if [ -n "$ZSH_VERSION" ]; then
 else
     _SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
-_GZ_MODELS="${_SCRIPT_DIR}/../external/PX4-gazebo-models"
+_GZ_MODELS="${_SCRIPT_DIR}/../external/PX4-gazebo-models/models"
 export GZ_SIM_RESOURCE_PATH="${GZ_SIM_RESOURCE_PATH:+${GZ_SIM_RESOURCE_PATH}:}${_GZ_MODELS}"
 unset _SCRIPT_DIR _GZ_MODELS
