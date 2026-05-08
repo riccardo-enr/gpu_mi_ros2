@@ -1,0 +1,11 @@
+octomap_to_grid_node:
+  ros__parameters:
+    occ_prior: 0.5
+    free_thresh: 0.5
+
+mi3d_field_node:
+  ros__parameters:
+    algo: fcmi          # fcmi | uniform_fsmi | approx_fsmi | fsmi | csqmi | approx_csqmi
+    publish_rate: 1.0   # Hz cap on the MI republish loop
+    min_mi: 0.0         # only voxels with MI > min_mi go into /mi3d_field
+    occ_prior: 0.5      # informational; the C++ converter applies the prior
