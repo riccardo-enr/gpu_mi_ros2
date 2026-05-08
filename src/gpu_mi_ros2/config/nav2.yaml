@@ -140,6 +140,17 @@ global_costmap:
       rolling_window: false
       track_unknown_space: true
       resolution: 0.10
+      # Explicit 20 x 20 m window anchored at (-5, -5) so the robot's spawn
+      # at (0, 0) is comfortably inside from t=0. Without this the costmap
+      # auto-sizes to /projected_map's first publish, which begins at
+      # (0, -1) due to the camera's near-plane -- leaving the robot epsilon
+      # outside the map and breaking SmacPlanner2D's start-cell lookup.
+      # Static layer paints whatever /projected_map covers; the rest stays
+      # unknown, and SmacPlanner2D's allow_unknown=true plans through it.
+      width: 20
+      height: 20
+      origin_x: -5.0
+      origin_y: -5.0
       footprint: "[[0.2, 0.15], [0.2, -0.15], [-0.2, -0.15], [-0.2, 0.15]]"
       footprint_padding: 0.02
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
