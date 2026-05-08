@@ -121,13 +121,14 @@ def test_nav2_yaml_polygon_footprint_matches_chassis():
         )
 
 
-def test_nav2_yaml_dwb_conservative_velocity_caps():
+def test_nav2_yaml_controller_conservative_velocity_caps():
     cfg = yaml.safe_load(NAV2_YAML.read_text())
     cs = cfg["controller_server"]["ros__parameters"]
     plugins = cs.get("controller_plugins", [])
     assert "FollowPath" in plugins, "controller_server must list FollowPath"
     plugin = cs["FollowPath"]["plugin"]
-    assert "dwb_core" in plugin and "DWBLocalPlanner" in plugin
+    # RegulatedPurePursuit chosen over DWB for diff-drive robustness; see issue #11.
+    assert "regulated_pure_pursuit" in plugin and "RegulatedPurePursuitController" in plugin
     assert float(cs["FollowPath"]["max_vel_x"]) == pytest.approx(0.5)
     assert float(cs["FollowPath"]["max_vel_theta"]) == pytest.approx(1.0)
 
