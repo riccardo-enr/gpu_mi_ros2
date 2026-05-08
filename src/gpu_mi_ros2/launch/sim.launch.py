@@ -85,10 +85,14 @@ def generate_launch_description():
     mi3d_launch_path = PathJoinSubstitution(
         [pkg_share, "launch", "mi3d_field.launch.py"]
     )
+    nav2_launch_path = PathJoinSubstitution(
+        [pkg_share, "launch", "nav2.launch.py"]
+    )
     headless = LaunchConfiguration("headless")
     slam = LaunchConfiguration("slam")
     mi = LaunchConfiguration("mi")
     mode = LaunchConfiguration("mode")
+    nav2 = LaunchConfiguration("nav2")
 
     return LaunchDescription(
         [
@@ -112,6 +116,12 @@ def generate_launch_description():
                 default_value="2d",
                 description="Pipeline mode: '2d' (slam_toolbox + mi_field_node) "
                 "or '3d' (octomap_server + ground-truth pose); '3d' implies slam:=false",
+            ),
+            DeclareLaunchArgument(
+                "nav2",
+                default_value="false",
+                description="Bring up the Nav2 stack (planner/controller/BT/lifecycle) "
+                "alongside the sim; consumes /projected_map from octomap_server",
             ),
             ExecuteProcess(
                 cmd=["gz", "sim", "-r", world_sdf],
@@ -250,6 +260,17 @@ def generate_launch_description():
                                 ["'", mi, "' == 'true' and '", mode, "' == '3d'"]
                             )
                         ),
+                    ),
+                ],
+            ),
+            # Nav2: opt-in via nav2:=true. Brought up after octomap so the
+            # global costmap's static layer can latch /projected_map immediately.
+            TimerAction(
+                period=6.0,
+                actions=[
+                    IncludeLaunchDescription(
+                        PythonLaunchDescriptionSource(nav2_launch_path),
+                        condition=IfCondition(nav2),
                     ),
                 ],
             ),

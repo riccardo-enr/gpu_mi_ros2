@@ -23,7 +23,10 @@ octomap_server:
     pointcloud_max_z: 3.0
 
     filter_ground: false
-    latch: false
+    # Latched (transient_local QoS) so Nav2's global_costmap static layer --
+    # which subscribes transient_local -- gets the latest /projected_map on
+    # late-join instead of waiting for the next change-driven publish.
+    latch: true
     publish_free_space: false
     colored_map: false
     color_factor: 0.8
