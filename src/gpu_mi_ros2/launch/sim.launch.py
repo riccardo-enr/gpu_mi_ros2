@@ -15,7 +15,11 @@ from launch.actions import (
 )
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import (
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    PythonExpression,
+)
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -75,9 +79,13 @@ def generate_launch_description():
     bridge_config = PathJoinSubstitution([pkg_share, "config", "ros_gz_bridge.yaml"])
     slam_launch_path = PathJoinSubstitution([pkg_share, "launch", "slam.launch.py"])
     mi_launch_path = PathJoinSubstitution([pkg_share, "launch", "mi_field.launch.py"])
+    octomap_launch_path = PathJoinSubstitution(
+        [pkg_share, "launch", "octomap.launch.py"]
+    )
     headless = LaunchConfiguration("headless")
     slam = LaunchConfiguration("slam")
     mi = LaunchConfiguration("mi")
+    mode = LaunchConfiguration("mode")
 
     return LaunchDescription(
         [
@@ -95,6 +103,12 @@ def generate_launch_description():
                 "mi",
                 default_value="true",
                 description="Start mi_field_node alongside the sim",
+            ),
+            DeclareLaunchArgument(
+                "mode",
+                default_value="2d",
+                description="Pipeline mode: '2d' (slam_toolbox + mi_field_node) "
+                "or '3d' (octomap_server + ground-truth pose); '3d' implies slam:=false",
             ),
             ExecuteProcess(
                 cmd=["gz", "sim", "-r", world_sdf],
@@ -180,24 +194,44 @@ def generate_launch_description():
                 ],
                 output="screen",
             ),
-            # Delay so /scan + TF are flowing before slam_toolbox starts.
+            # 2D path (default): slam_toolbox + mi_field_node.
             TimerAction(
                 period=3.0,
                 actions=[
                     IncludeLaunchDescription(
                         PythonLaunchDescriptionSource(slam_launch_path),
                         launch_arguments={"use_sim_time": "true"}.items(),
-                        condition=IfCondition(slam),
+                        condition=IfCondition(
+                            PythonExpression(
+                                ["'", slam, "' == 'true' and '", mode, "' != '3d'"]
+                            )
+                        ),
                     ),
                 ],
             ),
-            # Delay so /map exists before mi_field_node subscribes.
             TimerAction(
                 period=5.0,
                 actions=[
                     IncludeLaunchDescription(
                         PythonLaunchDescriptionSource(mi_launch_path),
-                        condition=IfCondition(mi),
+                        condition=IfCondition(
+                            PythonExpression(
+                                ["'", mi, "' == 'true' and '", mode, "' != '3d'"]
+                            )
+                        ),
+                    ),
+                ],
+            ),
+            # 3D path: octomap_server + gt_pose_to_tf. Bring up after the bridge
+            # so /camera/depth/points and the PosePublisher TF are flowing.
+            TimerAction(
+                period=3.0,
+                actions=[
+                    IncludeLaunchDescription(
+                        PythonLaunchDescriptionSource(octomap_launch_path),
+                        condition=IfCondition(
+                            PythonExpression(["'", mode, "' == '3d'"])
+                        ),
                     ),
                 ],
             ),
