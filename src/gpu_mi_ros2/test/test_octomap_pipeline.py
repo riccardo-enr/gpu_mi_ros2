@@ -87,7 +87,9 @@ def test_octomap_yaml_has_required_keys():
     assert float(params["sensor_model.min"]) == pytest.approx(0.12)
     assert float(params["sensor_model.max"]) == pytest.approx(0.97)
     assert float(params["occupancy_min_z"]) == pytest.approx(0.05)
-    assert params["latch"] is False
+    # Latched so Nav2's global_costmap static layer (transient_local subscriber)
+    # gets the latest /projected_map on late-join. See issue #11.
+    assert params["latch"] is True
     assert params["publish_free_space"] is False
 
 
