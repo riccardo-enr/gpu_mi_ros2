@@ -24,36 +24,18 @@ import rclpy
 from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
 
+from .utils import occgrid_to_occ2d, mi_to_occgrid_msg
+
+# Backwards-compatible aliases (kept for existing tests).
+_occ_grid_to_numpy = occgrid_to_occ2d
+_mi_to_occ_grid_msg = mi_to_occgrid_msg
+
 try:
     import gpu_mi_py
 
     _GPU_AVAILABLE = True
 except ImportError:
     _GPU_AVAILABLE = False
-
-
-def _occ_grid_to_numpy(msg: OccupancyGrid) -> np.ndarray:
-    """Convert nav_msgs/OccupancyGrid to float32 array in [0, 1], shape (W, H)."""
-    W, H = msg.info.width, msg.info.height
-    raw = np.array(msg.data, dtype=np.int8).reshape(H, W)
-    occ = np.where(raw < 0, 0.5, raw / 100.0).astype(np.float32)
-    return occ.T  # (W, H), column-major matching gpu_mi convention
-
-
-def _mi_to_occ_grid_msg(mi: np.ndarray, template: OccupancyGrid) -> OccupancyGrid:
-    """Pack a float MI field into a nav_msgs/OccupancyGrid scaled to [0, 100]."""
-    msg = OccupancyGrid()
-    msg.header = template.header
-    msg.info = template.info
-
-    finite = mi[np.isfinite(mi)]
-    mi_max = float(finite.max()) if finite.size > 0 else 1.0
-    mi_max = mi_max if mi_max > 0.0 else 1.0
-
-    scaled = np.clip(mi / mi_max * 100.0, 0.0, 100.0)
-    scaled = scaled.T.flatten().astype(np.int8)  # back to (H, W) row-major
-    msg.data = scaled.tolist()
-    return msg
 
 
 class MiFieldNode(Node):
@@ -99,7 +81,7 @@ class MiFieldNode(Node):
         if not _GPU_AVAILABLE:
             return
 
-        occ = _occ_grid_to_numpy(msg)
+        occ = occgrid_to_occ2d(msg)
         res = msg.info.resolution
         origin = (
             msg.info.origin.position.x,
@@ -117,7 +99,7 @@ class MiFieldNode(Node):
             self.get_logger().error(f"gpu_mi_py.compute failed: {exc}")
             return
 
-        self._pub.publish(_mi_to_occ_grid_msg(mi, msg))
+        self._pub.publish(mi_to_occgrid_msg(mi, msg))
 
 
 def main(args=None):
