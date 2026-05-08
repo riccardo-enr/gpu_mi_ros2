@@ -26,6 +26,7 @@ setup(
 entry_points={
         "console_scripts": [
             "mi_field_node = gpu_mi_ros2.mi_field_node:main",
+            "gt_pose_to_tf = gpu_mi_ros2.gt_pose_to_tf:main",
         ],
     },
 )

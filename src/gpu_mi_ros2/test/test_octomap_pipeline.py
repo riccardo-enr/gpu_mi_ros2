@@ -174,12 +174,23 @@ def test_octomap_launch_spawns_server_with_cloud_remap():
     assert len(server_nodes) == 1, "expected exactly one octomap_server_node"
 
     server = server_nodes[0]
-    # remappings is a list of (src, dst) tuples in launch_ros.
-    remap_text = repr(getattr(server, "_Node__remappings", "")) + repr(
-        getattr(server, "expanded_remapping_rules", "")
-    )
+    remappings = getattr(server, "_Node__remappings", []) or []
+    remap_text_parts = []
+    for entry in remappings:
+        for side in entry:
+            if isinstance(side, (list, tuple)):
+                for s in side:
+                    if isinstance(s, TextSubstitution):
+                        remap_text_parts.append(s.text)
+                    else:
+                        remap_text_parts.append(str(s))
+            elif isinstance(side, TextSubstitution):
+                remap_text_parts.append(side.text)
+            else:
+                remap_text_parts.append(str(side))
+    remap_text = " ".join(remap_text_parts)
     assert "cloud_in" in remap_text and "/camera/depth/points" in remap_text, (
-        "octomap_server_node must remap cloud_in -> /camera/depth/points"
+        f"octomap_server_node must remap cloud_in -> /camera/depth/points; got: {remap_text}"
     )
 
 
