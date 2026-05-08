@@ -122,10 +122,12 @@ local_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        # Robot half-width is 0.20 m; 0.20 m inflation gives ~one cell of
-        # clearance at 0.10 m resolution without smothering the footprint
-        # in cost (which made the controller abort with NoValidControl).
-        inflation_radius: 0.20
+        # SmacPlanner2D requires inflation_radius >= half the robot's largest
+        # cross-section for its optimized non-circular collision check
+        # (largest cross-section is the chassis diagonal sqrt(0.4^2 + 0.3^2) =
+        # 0.5 m, so >= 0.25 m). Below this it falls back to a slow path that
+        # produced paths RPP couldn't follow.
+        inflation_radius: 0.25
 
 global_costmap:
   global_costmap:
@@ -160,10 +162,12 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
-        # Robot half-width is 0.20 m; 0.20 m inflation gives ~one cell of
-        # clearance at 0.10 m resolution without smothering the footprint
-        # in cost (which made the controller abort with NoValidControl).
-        inflation_radius: 0.20
+        # SmacPlanner2D requires inflation_radius >= half the robot's largest
+        # cross-section for its optimized non-circular collision check
+        # (largest cross-section is the chassis diagonal sqrt(0.4^2 + 0.3^2) =
+        # 0.5 m, so >= 0.25 m). Below this it falls back to a slow path that
+        # produced paths RPP couldn't follow.
+        inflation_radius: 0.25
 
 planner_server:
   ros__parameters:
