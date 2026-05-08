@@ -20,7 +20,25 @@ import yaml
 
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess, IncludeLaunchDescription, TimerAction
+from launch.substitutions import TextSubstitution
 from launch_ros.actions import Node
+
+
+def _cmd_text(cmd) -> str:
+    """Concatenate the literal text of an ExecuteProcess.cmd list."""
+    parts = []
+    for token in cmd or []:
+        if isinstance(token, list):
+            for s in token:
+                if isinstance(s, TextSubstitution):
+                    parts.append(s.text)
+                else:
+                    parts.append(repr(s))
+        elif isinstance(token, TextSubstitution):
+            parts.append(token.text)
+        else:
+            parts.append(str(token))
+    return " ".join(parts)
 
 
 PKG_DIR = Path(__file__).resolve().parents[1]
@@ -133,25 +151,26 @@ def test_demo_launch_spawns_rviz2_with_demo_config():
             rviz_nodes.append(n)
     assert len(rviz_nodes) == 1, f"expected exactly one rviz2 Node, got {len(rviz_nodes)}"
 
-    args_repr = repr(rviz_nodes[0].cmd) + repr(getattr(rviz_nodes[0], "_Node__arguments", ""))
-    assert "demo.rviz" in args_repr, "rviz2 must be loaded with demo.rviz config"
+    cmd_text = _cmd_text(rviz_nodes[0].cmd)
+    assert "demo.rviz" in cmd_text, "rviz2 must be loaded with demo.rviz config"
 
 
 def test_demo_launch_spawns_teleop_with_terminal_detection():
     mod = _load_launch_module(DEMO_LAUNCH, "demo_launch_teleop")
     ld = mod.generate_launch_description()
-    procs = [e for e in _flatten(ld.entities) if isinstance(e, ExecuteProcess)]
+    # launch_ros.actions.Node subclasses ExecuteProcess, so filter Nodes out.
+    procs = [
+        e for e in _flatten(ld.entities)
+        if isinstance(e, ExecuteProcess) and not isinstance(e, Node)
+    ]
 
-    teleop_procs = [p for p in procs if "teleop_twist_keyboard" in repr(p.cmd)]
+    teleop_procs = [p for p in procs if "teleop_twist_keyboard" in _cmd_text(p.cmd)]
     assert teleop_procs, "demo.launch.py must spawn teleop_twist_keyboard"
 
-    proc = teleop_procs[0]
-    cmd_repr = repr(proc.cmd)
-    # Detection: ghostty preferred, fallbacks ordered.
-    assert "ghostty" in cmd_repr, "teleop spawner must prefer ghostty"
-    # At least one fallback emulator must be referenced.
+    cmd_text = _cmd_text(teleop_procs[0].cmd)
+    assert "ghostty" in cmd_text, "teleop spawner must prefer ghostty"
     assert any(
-        emu in cmd_repr for emu in ("gnome-terminal", "konsole", "xterm")
+        emu in cmd_text for emu in ("gnome-terminal", "konsole", "xterm")
     ), "teleop spawner must include a fallback terminal emulator"
 
 
