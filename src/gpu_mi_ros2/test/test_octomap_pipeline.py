@@ -1,22 +1,22 @@
 """Structural tests for the OctoMap pipeline (issue #9).
 
 Verifies that:
-- demo_robot SDF carries a PosePublisher plugin so world-frame pose flows into /tf.
-- A gt_pose_to_tf module exists and exposes a pure compute_map_to_odom(map_T_base,
-  odom_T_base) helper that returns map_T_base @ inv(odom_T_base).
 - config/octomap.yaml has the required keys for the agreed indoor RGBD sensor model.
 - launch/octomap.launch.py spawns octomap_server_node with cloud_in remapped to
-  /camera/depth/points, and spawns the gt_pose_to_tf node.
+  /camera/depth/points, and a static_transform_publisher anchoring map -> odom
+  (identity, since DiffDrive sim odom is exact).
 - sim.launch.py exposes a `mode` argument and includes octomap.launch.py when
   mode == 3d.
 - package.xml declares octomap_server + octomap_msgs.
-- setup.py registers the gt_pose_to_tf console_script.
+
+Proper world-pose ground truth (via gz /world/<w>/dynamic_pose/info) is tracked
+as a follow-up tied to the UAV milestone -- in sim, DiffDrive odom is exact so
+the residual map -> odom is identity and the static anchor is sufficient.
 """
 import importlib.util
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-import numpy as np
 import pytest
 import yaml
 
@@ -32,8 +32,6 @@ OCTOMAP_YAML = PKG_DIR / "config" / "octomap.yaml"
 OCTOMAP_LAUNCH = PKG_DIR / "launch" / "octomap.launch.py"
 SIM_LAUNCH = PKG_DIR / "launch" / "sim.launch.py"
 PACKAGE_XML = PKG_DIR / "package.xml"
-SETUP_PY = PKG_DIR / "setup.py"
-GT_POSE_MODULE = PKG_DIR / "gpu_mi_ros2" / "gt_pose_to_tf.py"
 
 
 def _load_module(path: Path, name: str):
@@ -66,63 +64,6 @@ def _node_arg_text(node: Node) -> str:
         else:
             parts.append(str(token))
     return " ".join(parts)
-
-
-# ----- SDF: PosePublisher plugin --------------------------------------------
-
-
-def test_sdf_has_pose_publisher_plugin():
-    tree = ET.parse(ROBOT_SDF)
-    root = tree.getroot()
-    model = root.find("model") if root.tag == "sdf" else root
-    pose_publishers = []
-    for plugin in model.findall("plugin"):
-        if "PosePublisher" in (plugin.get("name") or ""):
-            pose_publishers.append(plugin)
-    assert len(pose_publishers) == 1, (
-        "demo_robot SDF must declare exactly one PosePublisher plugin"
-    )
-    plugin = pose_publishers[0]
-    publish_model = plugin.find("publish_model_pose")
-    assert publish_model is not None and publish_model.text.strip().lower() in (
-        "true",
-        "1",
-    ), "PosePublisher must enable publish_model_pose"
-
-
-# ----- gt_pose_to_tf residual math ------------------------------------------
-
-
-def _se3(x=0.0, y=0.0, z=0.0, yaw=0.0):
-    """Return a 4x4 SE(3) for 2D pose (yaw rotation in xy)."""
-    c, s = np.cos(yaw), np.sin(yaw)
-    T = np.eye(4)
-    T[:3, :3] = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
-    T[:3, 3] = (x, y, z)
-    return T
-
-
-def test_gt_pose_compute_map_to_odom_identity():
-    assert GT_POSE_MODULE.is_file(), f"missing {GT_POSE_MODULE}"
-    mod = _load_module(GT_POSE_MODULE, "gt_pose_to_tf_under_test")
-    assert hasattr(mod, "compute_map_to_odom"), (
-        "gt_pose_to_tf must expose a pure compute_map_to_odom(map_T_base, odom_T_base)"
-    )
-    # When map_T_base == odom_T_base (sim case with perfect odom), residual is identity.
-    base = _se3(1.0, 2.0, 0.0, np.pi / 4)
-    out = mod.compute_map_to_odom(base, base)
-    np.testing.assert_allclose(out, np.eye(4), atol=1e-12)
-
-
-def test_gt_pose_compute_map_to_odom_offset():
-    mod = _load_module(GT_POSE_MODULE, "gt_pose_to_tf_offset")
-    map_T_base = _se3(3.0, 0.0, 0.0, 0.0)
-    odom_T_base = _se3(1.0, 0.0, 0.0, 0.0)
-    out = mod.compute_map_to_odom(map_T_base, odom_T_base)
-    expected = map_T_base @ np.linalg.inv(odom_T_base)
-    np.testing.assert_allclose(out, expected, atol=1e-12)
-    # Translation should be (2, 0, 0).
-    np.testing.assert_allclose(out[:3, 3], [2.0, 0.0, 0.0], atol=1e-12)
 
 
 # ----- octomap.yaml ---------------------------------------------------------
@@ -194,19 +135,26 @@ def test_octomap_launch_spawns_server_with_cloud_remap():
     )
 
 
-def test_octomap_launch_spawns_gt_pose_to_tf():
-    mod = _load_module(OCTOMAP_LAUNCH, "octomap_launch_gt")
+def test_octomap_launch_publishes_static_map_to_odom():
+    mod = _load_module(OCTOMAP_LAUNCH, "octomap_launch_static_tf")
     ld = mod.generate_launch_description()
     nodes = [e for e in _flatten(ld.entities) if isinstance(e, Node)]
 
-    gt_nodes = []
+    static_tfs = []
     for n in nodes:
         pkg = "".join(str(s) for s in (n.node_package or []))
         exe = "".join(str(s) for s in (n.node_executable or []))
-        if pkg == "gpu_mi_ros2" and exe == "gt_pose_to_tf":
-            gt_nodes.append(n)
-    assert gt_nodes, (
-        "octomap.launch.py must spawn gpu_mi_ros2/gt_pose_to_tf"
+        if pkg == "tf2_ros" and exe == "static_transform_publisher":
+            text = " ".join(
+                s.text if isinstance(s, TextSubstitution) else str(s)
+                for token in (n.cmd or [])
+                for s in (token if isinstance(token, list) else [token])
+            )
+            if "map" in text and "odom" in text:
+                static_tfs.append(text)
+    assert static_tfs, (
+        "octomap.launch.py must spawn a static_transform_publisher anchoring "
+        "map -> odom (identity)"
     )
 
 
@@ -248,14 +196,3 @@ def test_package_xml_declares_octomap_deps():
     assert "octomap_msgs" in deps
 
 
-# ----- setup.py entry point -------------------------------------------------
-
-
-def test_setup_py_registers_gt_pose_to_tf_console_script():
-    text = SETUP_PY.read_text()
-    assert "gt_pose_to_tf" in text, (
-        "setup.py must register a gt_pose_to_tf console_script entry"
-    )
-    assert "gpu_mi_ros2.gt_pose_to_tf" in text, (
-        "console_script must point at gpu_mi_ros2.gt_pose_to_tf:main"
-    )

@@ -304,22 +304,5 @@
       <robot_base_frame>base_link</robot_base_frame>
     </plugin>
 
-    <!--
-      PosePublisher emits the model's world-frame pose into the same Pose_V
-      stream that SceneBroadcaster already publishes on /model/demo_robot/pose.
-      The bridge converts that stream to /tf, so /tf carries an extra
-      `<world> -> demo_robot` transform that gt_pose_to_tf reads to anchor
-      the `map` frame.
-    -->
-    <plugin filename="gz-sim-pose-publisher-system"
-            name="gz::sim::systems::PosePublisher">
-      <publish_model_pose>true</publish_model_pose>
-      <publish_link_pose>false</publish_link_pose>
-      <publish_visual_pose>false</publish_visual_pose>
-      <publish_collision_pose>false</publish_collision_pose>
-      <publish_nested_model_pose>false</publish_nested_model_pose>
-      <update_frequency>30</update_frequency>
-    </plugin>
-
   </model>
 </sdf>
