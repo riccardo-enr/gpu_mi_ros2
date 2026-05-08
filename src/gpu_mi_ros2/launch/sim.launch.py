@@ -82,6 +82,9 @@ def generate_launch_description():
     octomap_launch_path = PathJoinSubstitution(
         [pkg_share, "launch", "octomap.launch.py"]
     )
+    mi3d_launch_path = PathJoinSubstitution(
+        [pkg_share, "launch", "mi3d_field.launch.py"]
+    )
     headless = LaunchConfiguration("headless")
     slam = LaunchConfiguration("slam")
     mi = LaunchConfiguration("mi")
@@ -231,6 +234,21 @@ def generate_launch_description():
                         PythonLaunchDescriptionSource(octomap_launch_path),
                         condition=IfCondition(
                             PythonExpression(["'", mode, "' == '3d'"])
+                        ),
+                    ),
+                ],
+            ),
+            # 3D MI: octomap_to_grid_node + mi3d_field_node. Bring up after the
+            # OctoMap pipeline so /octomap_binary is publishing.
+            TimerAction(
+                period=5.0,
+                actions=[
+                    IncludeLaunchDescription(
+                        PythonLaunchDescriptionSource(mi3d_launch_path),
+                        condition=IfCondition(
+                            PythonExpression(
+                                ["'", mi, "' == 'true' and '", mode, "' == '3d'"]
+                            )
                         ),
                     ),
                 ],
