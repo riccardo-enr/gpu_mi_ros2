@@ -173,6 +173,15 @@ def test_nav2_launch_spawns_required_servers():
     assert not missing, f"nav2.launch.py missing nodes: {missing}"
 
 
+def _flatten_subs(x) -> str:
+    """Best-effort render of a substitution / list-of-substitutions to text."""
+    if isinstance(x, TextSubstitution):
+        return x.text
+    if isinstance(x, (list, tuple)):
+        return "".join(_flatten_subs(e) for e in x)
+    return str(x)
+
+
 def test_nav2_launch_has_lifecycle_manager_with_autostart():
     mod = _load_module(NAV2_LAUNCH, "nav2_launch_lifecycle")
     ld = mod.generate_launch_description()
@@ -181,14 +190,20 @@ def test_nav2_launch_has_lifecycle_manager_with_autostart():
     lcm = [n for n in nodes if _node_pkg_exe(n) == ("nav2_lifecycle_manager", "lifecycle_manager")]
     assert len(lcm) == 1, "expected exactly one nav2_lifecycle_manager"
 
-    # Inspect the parameters dict for autostart=True and a non-empty node_names list.
+    # launch_ros normalizes the parameter dict: keys become tuples of
+    # TextSubstitutions and values become tuples of substitutions, so render
+    # each entry to text before inspecting.
     params_list = getattr(lcm[0], "_Node__parameters", []) or []
-    flat = {}
+    rendered = {}
     for entry in params_list:
         if isinstance(entry, dict):
-            flat.update(entry)
-    assert flat.get("autostart") is True, "lifecycle_manager.autostart must be True"
-    nodes_managed = flat.get("node_names") or []
+            for k, v in entry.items():
+                rendered[_flatten_subs(k)] = _flatten_subs(v)
+
+    assert rendered.get("autostart", "").lower() == "true", (
+        f"lifecycle_manager.autostart must be True, got {rendered.get('autostart')!r}"
+    )
+    nodes_managed = rendered.get("node_names", "")
     for required in (
         "planner_server",
         "controller_server",
@@ -197,7 +212,7 @@ def test_nav2_launch_has_lifecycle_manager_with_autostart():
         "waypoint_follower",
     ):
         assert required in nodes_managed, (
-            f"lifecycle_manager must manage {required}, got {nodes_managed}"
+            f"lifecycle_manager must manage {required}, got {nodes_managed!r}"
         )
 
 
