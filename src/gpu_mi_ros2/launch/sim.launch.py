@@ -6,6 +6,19 @@ from pathlib import Path
 # cyberzoo_office.sdf has none, so the lidar never produces scans without
 # the Sensors plugin. Inject the standard plugin block at launch time so
 # the submodule stays untouched.
+from launch import LaunchDescription
+from launch.actions import (
+    DeclareLaunchArgument,
+    ExecuteProcess,
+    IncludeLaunchDescription,
+    TimerAction,
+)
+from launch.conditions import IfCondition, UnlessCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
+
 _GZ_SYSTEM_PLUGINS = """\
     <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
     <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
@@ -33,20 +46,6 @@ def _patched_world(src_path: str) -> str:
     out = Path(tempfile.gettempdir()) / "gpu_mi_ros2_cyberzoo_office_patched.sdf"
     out.write_text(patched)
     return str(out)
-
-
-from launch import LaunchDescription
-from launch.actions import (
-    DeclareLaunchArgument,
-    ExecuteProcess,
-    IncludeLaunchDescription,
-    TimerAction,
-)
-from launch.conditions import IfCondition, UnlessCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
@@ -139,10 +138,45 @@ def generate_launch_description():
                 package="tf2_ros",
                 executable="static_transform_publisher",
                 arguments=[
-                    "--x", "0", "--y", "0", "--z", "0.095",
-                    "--roll", "0", "--pitch", "0", "--yaw", "0",
-                    "--frame-id", "base_link",
-                    "--child-frame-id", "lidar_link",
+                    "--x",
+                    "0",
+                    "--y",
+                    "0",
+                    "--z",
+                    "0.095",
+                    "--roll",
+                    "0",
+                    "--pitch",
+                    "0",
+                    "--yaw",
+                    "0",
+                    "--frame-id",
+                    "base_link",
+                    "--child-frame-id",
+                    "lidar_link",
+                ],
+                output="screen",
+            ),
+            Node(
+                package="tf2_ros",
+                executable="static_transform_publisher",
+                arguments=[
+                    "--x",
+                    "0.15",
+                    "--y",
+                    "0",
+                    "--z",
+                    "0.10",
+                    "--roll",
+                    "0",
+                    "--pitch",
+                    "0",
+                    "--yaw",
+                    "0",
+                    "--frame-id",
+                    "base_link",
+                    "--child-frame-id",
+                    "camera_link",
                 ],
                 output="screen",
             ),
