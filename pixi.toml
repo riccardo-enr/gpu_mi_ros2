@@ -38,6 +38,8 @@ test = "colcon test"
 clean = "rm -rf build install log"
 launch = { cmd = "ros2 launch gpu_mi_ros2 mi_field.launch.py" }
 sim = { cmd = "ros2 launch gpu_mi_ros2 sim.launch.py", depends-on = ["build"] }
+demo = { cmd = "ros2 launch gpu_mi_ros2 demo.launch.py", depends-on = ["build"] }
+teleop = { cmd = "ros2 run teleop_twist_keyboard teleop_twist_keyboard" }
 
 [activation]
 scripts = ["scripts/setup_env.sh"]
