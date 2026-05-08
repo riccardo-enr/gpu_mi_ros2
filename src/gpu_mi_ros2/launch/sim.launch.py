@@ -23,6 +23,7 @@ def _patched_world(src_path: str) -> str:
         return src_path
     # Inject right after the opening <world ...> tag.
     import re
+
     patched = re.sub(
         r"(<world\b[^>]*>)",
         r"\1\n" + _GZ_SYSTEM_PLUGINS,
@@ -32,6 +33,7 @@ def _patched_world(src_path: str) -> str:
     out = Path(tempfile.gettempdir()) / "gpu_mi_ros2_cyberzoo_office_patched.sdf"
     out.write_text(patched)
     return str(out)
+
 
 from launch import LaunchDescription
 from launch.actions import (
@@ -53,13 +55,21 @@ def generate_launch_description():
     # parents[3] = repo root  (launch/ -> pkg/ -> src/ -> root); symlink resolves to source
     repo_root = Path(__file__).resolve().parents[3]
     world_sdf = _patched_world(
-        str(repo_root / "external" / "PX4-gazebo-models" / "worlds" / "cyberzoo_office.sdf")
+        str(
+            repo_root
+            / "external"
+            / "PX4-gazebo-models"
+            / "worlds"
+            / "cyberzoo_office.sdf"
+        )
     )
     # model://cyberzoo is inside the models/ subdirectory of the submodule
     gz_models_path = str(repo_root / "external" / "PX4-gazebo-models" / "models")
     existing_resource_path = os.environ.get("GZ_SIM_RESOURCE_PATH", "")
     gz_resource_path = (
-        f"{existing_resource_path}:{gz_models_path}" if existing_resource_path else gz_models_path
+        f"{existing_resource_path}:{gz_models_path}"
+        if existing_resource_path
+        else gz_models_path
     )
 
     robot_sdf = PathJoinSubstitution([pkg_share, "models", "demo_robot", "model.sdf"])
@@ -120,6 +130,20 @@ def generate_launch_description():
                 package="ros_gz_bridge",
                 executable="parameter_bridge",
                 arguments=["--ros-args", "-p", ["config_file:=", bridge_config]],
+                output="screen",
+            ),
+            # gz does not bridge the SDF static link tree to /tf_static, so
+            # publish the base_link -> lidar_link transform here. Values match
+            # the lidar_link <pose> in models/demo_robot/model.sdf.
+            Node(
+                package="tf2_ros",
+                executable="static_transform_publisher",
+                arguments=[
+                    "--x", "0", "--y", "0", "--z", "0.095",
+                    "--roll", "0", "--pitch", "0", "--yaw", "0",
+                    "--frame-id", "base_link",
+                    "--child-frame-id", "lidar_link",
+                ],
                 output="screen",
             ),
             # Delay so /scan + TF are flowing before slam_toolbox starts.
